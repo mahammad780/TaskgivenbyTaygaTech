@@ -15,7 +15,7 @@ import com.example.taskgivenbytaygatech.R
 import com.example.taskgivenbytaygatech.Room.DataBase
 import com.example.taskgivenbytaygatech.Room.PeopleEntity
 
-class RecyclerViewAdapter(private val personsList: List<PeopleEntity>) : RecyclerView.Adapter<RecyclerViewAdapter.MyViewHolder>(){
+class RecyclerViewAdapter(private val personsList: MutableList<PeopleEntity>) : RecyclerView.Adapter<RecyclerViewAdapter.MyViewHolder>(){
 
     class MyViewHolder(view: View): RecyclerView.ViewHolder(view) {
         var personName: TextView = view.findViewById(R.id.textName)
@@ -40,15 +40,11 @@ class RecyclerViewAdapter(private val personsList: List<PeopleEntity>) : Recycle
 
     }
 
-    /*class Comparator: DiffUtil.ItemCallback<People>(){
-        override fun areItemsTheSame(oldItem: People, newItem: People): Boolean {
-            return oldItem.personId == newItem.personId
-        }
+    fun filterByCities(newList: MutableList<PeopleEntity>){
+        personsList.clear()
+        personsList.addAll(newList)
+        notifyDataSetChanged()
+    }
 
-        override fun areContentsTheSame(oldItem: People, newItem: People): Boolean {
-            return oldItem == newItem
-        }
-
-    }*/
 
 }
