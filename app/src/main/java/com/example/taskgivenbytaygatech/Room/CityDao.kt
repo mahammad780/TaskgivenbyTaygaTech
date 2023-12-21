@@ -9,7 +9,7 @@ interface CityDao {
     @Insert
     suspend fun insertCity(city: CityEntity)
 
-    @Query("SELECT * FROM cities WHERE countryId = :countryId")
+    @Query("SELECT * FROM cities WHERE country_id = :countryId")
     suspend fun getCityByCountry(countryId: Int): List<CityEntity>
 
     @Query("SELECT * FROM cities")

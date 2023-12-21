@@ -1,5 +1,6 @@
 package com.example.taskgivenbytaygatech
 
+import com.example.taskgivenbytaygatech.Data.Countries
 import com.example.taskgivenbytaygatech.Room.CityEntity
 import com.example.taskgivenbytaygatech.Room.CountryEntity
 import com.example.taskgivenbytaygatech.Room.DataBase
@@ -7,12 +8,13 @@ import com.example.taskgivenbytaygatech.Room.PeopleEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import retrofit2.Call
 
 class FromApiToDataBase(private val countriesApi: CountriesAPI, private val dataBase: DataBase) {
 
     suspend fun getDataInsertToDatabase() {
         CoroutineScope(Dispatchers.IO).launch{
-            val countries = countriesApi.getCountries()
+            val countries: List<Countries>? = countriesApi.getCountries().execute().body()
 
             countries?.forEach { country ->
                 dataBase.countryDao().insertCountry(CountryEntity(country.countryId, country.name))

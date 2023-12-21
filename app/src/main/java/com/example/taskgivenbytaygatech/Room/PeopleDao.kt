@@ -9,7 +9,7 @@ interface PeopleDao {
     @Insert
     suspend fun insertPerson(person: PeopleEntity)
 
-    @Query("SELECT * FROM people WHERE cityId = :cityId")
+    @Query("SELECT * FROM people WHERE city_id = :cityId")
     suspend fun getPersonByCity(cityId: Int): List<PeopleEntity>
 
     @Query("SELECT * FROM people")
