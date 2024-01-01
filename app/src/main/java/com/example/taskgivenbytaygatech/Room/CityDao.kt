@@ -1,18 +1,17 @@
 package com.example.taskgivenbytaygatech.Room
 
+import androidx.lifecycle.LiveData
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 
 @Dao
 interface CityDao {
-    @Insert
-    suspend fun insertCity(city: CityEntity)
-
-    @Query("SELECT * FROM cities WHERE country_id = :countryId")
-    suspend fun getCityByCountry(countryId: Int): List<CityEntity>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCity(city: List<CityEntity>)
 
     @Query("SELECT * FROM cities")
-    suspend fun getAllCities(): List<CityEntity>
+     fun getAllCities(): LiveData<List<CityEntity>>
 
 }

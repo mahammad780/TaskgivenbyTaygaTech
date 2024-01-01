@@ -20,25 +20,25 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/spinner2" />
+        app:layout_constraintTop_toBottomOf="@+id/spinnerCities" />
 
-    <Spinner
-        android:id="@+id/spinner"
-        android:layout_width="187dp"
-        android:layout_height="50dp"
-        app:layout_constraintEnd_toStartOf="@+id/spinner2"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        <Spinner
+            android:id="@+id/spinnerCountries"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            app:layout_constraintEnd_toStartOf="@+id/spinnerCities"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-    <Spinner
-        android:id="@+id/spinner2"
-        android:layout_width="203dp"
-        android:layout_height="49dp"
-        android:layout_below="@id/spinner"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
-        app:layout_constraintStart_toEndOf="@+id/spinner"
-        app:layout_constraintTop_toTopOf="parent" />
+        <Spinner
+            android:id="@+id/spinnerCities"
+            android:layout_width="0dp"
+            android:layout_height="49dp"
+            android:layout_below="@id/spinnerCountries"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="1.0"
+            app:layout_constraintStart_toEndOf="@+id/spinnerCountries"
+            app:layout_constraintTop_toTopOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -1,134 +1,246 @@
 package com.example.taskgivenbytaygatech
 
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.provider.Settings
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import androidx.lifecycle.lifecycleScope
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.room.Room
+import com.example.taskgivenbytaygatech.Adapter.AppViewModel
+import com.example.taskgivenbytaygatech.Adapter.AppViewModelFactory
+import com.example.taskgivenbytaygatech.Adapter.AppViewModelFactoryForDatabase
+import com.example.taskgivenbytaygatech.Adapter.AppViewModelForDatabase
 import com.example.taskgivenbytaygatech.Adapter.RecyclerViewAdapter
+import com.example.taskgivenbytaygatech.Repository.FromApiToDataBase
+import com.example.taskgivenbytaygatech.Repository.FromDataBase
 import com.example.taskgivenbytaygatech.Room.CityEntity
 import com.example.taskgivenbytaygatech.Room.CountryEntity
 import com.example.taskgivenbytaygatech.Room.DataBase
 import com.example.taskgivenbytaygatech.Room.PeopleEntity
 import com.example.taskgivenbytaygatech.databinding.ActivityMainBinding
-import kotlinx.coroutines.launch
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class MainActivity : AppCompatActivity() {
-    lateinit var binding: ActivityMainBinding
+    private lateinit var binding: ActivityMainBinding
     private lateinit var dataBase: DataBase
-    private lateinit var fromApiToDataBase: FromApiToDataBase
     private lateinit var adapter: RecyclerViewAdapter
-    private lateinit var peopleList: MutableList<PeopleEntity>
-    private lateinit var countriesArray: ArrayList<CountryEntity>
-    private lateinit var citiesArray: ArrayList<CityEntity>
+    private lateinit var viewModel: AppViewModel
+    private lateinit var viewModelForDataBase: AppViewModelForDatabase
+    private lateinit var adapterCitiesSpinner: ArrayAdapter<String>
+    private lateinit var adapterCountriesSpinner: ArrayAdapter<String>
+    private lateinit var internetSettingsLauncher: ActivityResultLauncher<Intent>
+    private val MY_FILE = "MyFile"
+    private val FIRST_RUN_FLAG = "firstRun"
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
-        dataBase = Room.databaseBuilder(this, DataBase::class.java, "database")
+        if (!isInternetAvailable() && isFirstRun()) {
+            updateFirstRunFlag()
+            showInternetDialogForFirstTime()
+        }
+
+        internetSettingsLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            if (isInternetAvailable()) {
+                val intent = Intent(this, MainActivity::class.java)
+                startActivity(intent)
+                finish()
+            } else {
+                showInternetDialogForFirstTime()
+            }
+        }
+
+        dataBase = Room.databaseBuilder(applicationContext, DataBase::class.java, "database")
             .fallbackToDestructiveMigration().build()
 
-        initRetrofitAndGetData()
-        initRecyclerView()
-        settingCountrySpinnersAdapter()
-        settingCitySpinnersAdapter()
+        if (isInternetAvailable()) {
+            val retrofit = Retrofit.Builder()
+                .baseUrl("http://89.147.202.166:1153/tayqa/tiger/api/development/test/")
+                .addConverterFactory(GsonConverterFactory.create()).build()
+            val countriesAPI = retrofit.create(CountriesAPI::class.java)
 
+            val fromApiToDataBase = FromApiToDataBase(countriesAPI, dataBase)
+            viewModel = ViewModelProvider(
+                this, AppViewModelFactory(fromApiToDataBase)
+            )[AppViewModel::class.java]
+            viewModel.fetchData()
+        }
 
+        val fromDataBase = FromDataBase(dataBase)
+        viewModelForDataBase = ViewModelProvider(
+            this, AppViewModelFactoryForDatabase(fromDataBase)
+        )[AppViewModelForDatabase::class.java]
+
+        setRecyclerViewAdapter()
+
+        viewModelForDataBase.getPeopleFromDB().observe(this, Observer {
+            val listPeople = it.toMutableList()
+            adapter.setPersons(listPeople)
+        })
+        viewModelForDataBase.getCountriesFromDB().observe(this, Observer {
+            adapterCountriesSpinner = settingCountrySpinnersAdapter(it)
+            binding.spinnerCountries.adapter = adapterCountriesSpinner
+        })
+
+        binding.spinnerCountries.onItemSelectedListener =
+            object : AdapterView.OnItemSelectedListener {
+                override fun onNothingSelected(parent: AdapterView<*>?) {
+
+                }
+
+                override fun onItemSelected(
+                    parent: AdapterView<*>?, view: View?, position: Int, id: Long
+                ) {
+                    viewModelForDataBase.getCitiesFromDb().observe(this@MainActivity, Observer {
+                        adapterCitiesSpinner = updateCitySpinner(position, it)
+                        binding.spinnerCities.adapter = adapterCitiesSpinner
+                        if (binding.spinnerCountries.selectedItemPosition == 0) {
+                            binding.spinnerCities.isEnabled = false
+                            binding.spinnerCities.isActivated = false
+                        } else {
+                            binding.spinnerCities.isEnabled = true
+                            binding.spinnerCities.isActivated = true
+                        }
+                    })
+                }
+            }
+        binding.spinnerCities.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+
+            }
+
+            override fun onItemSelected(
+                parent: AdapterView<*>?, view: View?, position: Int, id: Long
+            ) {
+                viewModelForDataBase.getPeopleFromDB().observe(this@MainActivity, Observer {
+                    val filteredList = filteredPeopleList(
+                        it, binding.spinnerCities.selectedItem.toString()
+                    )
+                    if (binding.spinnerCities.selectedItem == "Cities") {
+                        val listPeople = it.toMutableList()
+                        adapter.setPersons(listPeople)
+                    } else {
+                        adapter.filterByCities(filteredList)
+                    }
+
+                })
+            }
+        }
         binding.swipeRefresh.setColorSchemeResources(R.color.black)
         binding.swipeRefresh.setOnRefreshListener {
-            binding.spinner2.isEnabled = false
-            binding.spinner.clearChildFocus(binding.spinner2)
-            binding.spinner.clearFocus()
-            adapter.filterByCities(peopleList)
-            binding.swipeRefresh.isRefreshing = false
-
-        }
-
-        binding.spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p0: AdapterView<*>?, p1: View?, p2: Int, p3: Long) {
-                val selectedCountry = countriesArray[p2]
-                updateCitySpinner(selectedCountry.id)
-            }
-
-            override fun onNothingSelected(p0: AdapterView<*>?) {
-                binding.spinner2.isEnabled = false
-            }
-
-        }
-
-        binding.spinner2.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p0: AdapterView<*>?, p1: View?, p2: Int, p3: Long) {
-                val selectedCity = citiesArray[p2].id
-                val filteredList = filteredPeopleList(peopleList, selectedCity)
-                adapter.filterByCities(filteredList)
-            }
-
-            override fun onNothingSelected(p0: AdapterView<*>?) {
-
-            }
+            viewModelForDataBase.getPeopleFromDB().observe(this, Observer {
+                val listPeople = it.toMutableList()
+                adapter.setPersons(listPeople)
+                binding.spinnerCountries.setSelection(0)
+                binding.swipeRefresh.isRefreshing = false
+            })
         }
     }
 
 
-    private fun initRetrofitAndGetData() {
-        val countriesApi = RetrofitInstance().getService()
-        lifecycleScope.launch {
-            fromApiToDataBase = FromApiToDataBase(countriesApi, dataBase)
-            fromApiToDataBase.getDataInsertToDatabase()
-            peopleList = dataBase.peopleDao().getAllPersons().toMutableList()
-            countriesArray = dataBase.countryDao().getAllCountries() as ArrayList<CountryEntity>
-            citiesArray = dataBase.cityDao().getAllCities() as ArrayList<CityEntity>
-        }
-    }
-
-
-    private fun initRecyclerView() {
+    private fun setRecyclerViewAdapter() {
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = RecyclerViewAdapter(peopleList)
+        adapter = RecyclerViewAdapter()
+        binding.recyclerView.setHasFixedSize(true)
         binding.recyclerView.adapter = adapter
-
     }
 
-    fun settingCountrySpinnersAdapter() {
-        val adapterCountriesSpinner =
-            ArrayAdapter(this, android.R.layout.simple_spinner_item, countriesArray.map { it.name })
-        adapterCountriesSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        binding.spinner.adapter = adapterCountriesSpinner
+    private fun settingCountrySpinnersAdapter(countries: List<CountryEntity>): ArrayAdapter<String> {
+        val country: MutableList<String> = mutableListOf()
+        country.addAll(countries.map { it.name })
+        country.add(0, "Countries")
+        val adapterCountriesSpinner = ArrayAdapter(this, R.layout.mu_spinner_item, country)
+        adapterCountriesSpinner.setDropDownViewResource(R.layout.mu_dropdown_item)
+        adapterCountriesSpinner.notifyDataSetChanged()
+        return adapterCountriesSpinner
     }
 
-    fun settingCitySpinnersAdapter() {
-        val adapterCitiesSpinner =
-            ArrayAdapter(this, android.R.layout.simple_spinner_item, mutableListOf<String>())
-        adapterCitiesSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        binding.spinner2.adapter = adapterCitiesSpinner
+    private fun updateCitySpinner(countryId: Int, cities: List<CityEntity>): ArrayAdapter<String> {
+        val filteredCities = cities.filter { city ->
+            city.countryId == countryId
+        }
+        val cityName = mutableListOf<String>()
+
+        cityName.addAll(filteredCities.map { filteredCity ->
+            filteredCity.name
+        })
+        cityName.add(0, "Cities")
+        val adapterCitiesSpinner = ArrayAdapter(this, R.layout.mu_spinner_item, cityName)
+        adapterCitiesSpinner.setDropDownViewResource(R.layout.mu_dropdown_item)
+        adapterCitiesSpinner.notifyDataSetChanged()
+        return adapterCitiesSpinner
     }
 
-
-    fun updateCitySpinner(countryId: Int) {
-        val filteredCities = citiesArray.filter { it.countryId == countryId }
-        val cityName = filteredCities.map { it.name }
-
-        val citiesAdapter = binding.spinner2.adapter as ArrayAdapter<String>
-        citiesAdapter.clear()
-        citiesAdapter.addAll(cityName)
-        citiesAdapter.notifyDataSetChanged()
-    }
-
-    private fun filteredPeopleList( people: MutableList<PeopleEntity>, currentCityId: Int): MutableList<PeopleEntity> {
+    private fun filteredPeopleList(
+        people: List<PeopleEntity>, currentCityName: String
+    ): MutableList<PeopleEntity> {
         val filteredPeopleList = mutableListOf<PeopleEntity>()
         for (person in people) {
-            if (person.cityId == currentCityId) {
+            if (person.cityName.equals(currentCityName)) {
                 filteredPeopleList.add(person)
             }
         }
         return filteredPeopleList
     }
 
+    private fun isInternetAvailable(): Boolean {
+        val connectivityManager =
+            getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val network = connectivityManager.activeNetwork
+            val capabilities = connectivityManager.getNetworkCapabilities(network)
+            return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        } else {
+            val activeNetworkInfo = connectivityManager.activeNetworkInfo
+            return activeNetworkInfo != null && activeNetworkInfo.isConnected
+        }
+    }
+
+    private fun showInternetDialogForFirstTime() {
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Internet Access Required")
+        builder.setMessage("Please enable internet access to use this app.")
+        builder.setPositiveButton("Enable") { _, _ ->
+            val settingsIntent = Intent(Settings.ACTION_WIRELESS_SETTINGS)
+            internetSettingsLauncher.launch(settingsIntent)
+        }
+        builder.setNegativeButton("Cancel") { _, _ ->
+            finish()
+        }
+        builder.setCancelable(false)
+        builder.show()
+    }
+
+    private fun isFirstRun(): Boolean {
+        val settings = getSharedPreferences(MY_FILE, Context.MODE_PRIVATE)
+        return settings.getBoolean(FIRST_RUN_FLAG, true)
+    }
+
+    private fun updateFirstRunFlag() {
+        val settings = getSharedPreferences(MY_FILE, Context.MODE_PRIVATE)
+        val editor = settings.edit()
+        editor.putBoolean(FIRST_RUN_FLAG, false)
+        editor.apply()
+    }
 }
