@@ -62,7 +62,9 @@ class MainActivity : AppCompatActivity() {
             ActivityResultContracts.StartActivityForResult()
         ) {
             if (isInternetAvailable()) {
-                recreate()
+                val intent = Intent(this, MainActivity::class.java)
+                startActivity(intent)
+                finish()
             } else {
                 showInternetDialogForFirstTime()
             }
@@ -153,7 +155,6 @@ class MainActivity : AppCompatActivity() {
             })
         }
     }
-
 
     private fun setRecyclerViewAdapter() {
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
