@@ -1,4 +1,4 @@
-package com.example.taskgivenbytaygatech.Adapter
+package com.example.taskgivenbytaygatech.ViewModel
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
@@ -7,7 +7,7 @@ import com.example.taskgivenbytaygatech.Room.CityEntity
 import com.example.taskgivenbytaygatech.Room.CountryEntity
 import com.example.taskgivenbytaygatech.Room.PeopleEntity
 
-class AppViewModelForDatabase(private val fromDataBase: FromDataBase) : ViewModel() {
+class ViewModelDatabase(private val fromDataBase: FromDataBase) : ViewModel() {
     fun getPeopleFromDB(): LiveData<List<PeopleEntity>> {
         return fromDataBase.getAllPeople()
     }

@@ -1,8 +1,7 @@
 package com.example.taskgivenbytaygatech.Repository
 
-import androidx.lifecycle.LiveData
-import com.example.taskgivenbytaygatech.CountriesAPI
-import com.example.taskgivenbytaygatech.Data.Root
+import com.example.taskgivenbytaygatech.Network.CountriesAPI
+import com.example.taskgivenbytaygatech.Model.Root
 import com.example.taskgivenbytaygatech.Room.CityEntity
 import com.example.taskgivenbytaygatech.Room.CountryEntity
 import com.example.taskgivenbytaygatech.Room.DataBase

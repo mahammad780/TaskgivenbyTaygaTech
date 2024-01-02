@@ -1,6 +1,6 @@
-package com.example.taskgivenbytaygatech
+package com.example.taskgivenbytaygatech.Network
 
-import com.example.taskgivenbytaygatech.Data.Root
+import com.example.taskgivenbytaygatech.Model.Root
 import retrofit2.http.GET
 
 interface CountriesAPI {

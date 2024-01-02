@@ -1,4 +1,4 @@
-package com.example.taskgivenbytaygatech.Data
+package com.example.taskgivenbytaygatech.Model
 
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName

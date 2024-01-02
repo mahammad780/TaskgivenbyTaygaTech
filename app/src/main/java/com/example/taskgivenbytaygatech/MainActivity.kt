@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.Settings
@@ -19,11 +18,12 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.room.Room
-import com.example.taskgivenbytaygatech.Adapter.AppViewModel
-import com.example.taskgivenbytaygatech.Adapter.AppViewModelFactory
-import com.example.taskgivenbytaygatech.Adapter.AppViewModelFactoryForDatabase
-import com.example.taskgivenbytaygatech.Adapter.AppViewModelForDatabase
+import com.example.taskgivenbytaygatech.ViewModel.ViewModelApi
+import com.example.taskgivenbytaygatech.ViewModel.ViewModelApiFactory
+import com.example.taskgivenbytaygatech.ViewModel.ViewModelDatabaseFactory
+import com.example.taskgivenbytaygatech.ViewModel.ViewModelDatabase
 import com.example.taskgivenbytaygatech.Adapter.RecyclerViewAdapter
+import com.example.taskgivenbytaygatech.Network.CountriesAPI
 import com.example.taskgivenbytaygatech.Repository.FromApiToDataBase
 import com.example.taskgivenbytaygatech.Repository.FromDataBase
 import com.example.taskgivenbytaygatech.Room.CityEntity
@@ -38,8 +38,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var dataBase: DataBase
     private lateinit var adapter: RecyclerViewAdapter
-    private lateinit var viewModel: AppViewModel
-    private lateinit var viewModelForDataBase: AppViewModelForDatabase
+    private lateinit var viewModel: ViewModelApi
+    private lateinit var viewModelDataBase: ViewModelDatabase
     private lateinit var adapterCitiesSpinner: ArrayAdapter<String>
     private lateinit var adapterCountriesSpinner: ArrayAdapter<String>
     private lateinit var internetSettingsLauncher: ActivityResultLauncher<Intent>
@@ -62,9 +62,7 @@ class MainActivity : AppCompatActivity() {
             ActivityResultContracts.StartActivityForResult()
         ) {
             if (isInternetAvailable()) {
-                val intent = Intent(this, MainActivity::class.java)
-                startActivity(intent)
-                finish()
+                recreate()
             } else {
                 showInternetDialogForFirstTime()
             }
@@ -81,23 +79,23 @@ class MainActivity : AppCompatActivity() {
 
             val fromApiToDataBase = FromApiToDataBase(countriesAPI, dataBase)
             viewModel = ViewModelProvider(
-                this, AppViewModelFactory(fromApiToDataBase)
-            )[AppViewModel::class.java]
+                this, ViewModelApiFactory(fromApiToDataBase)
+            )[ViewModelApi::class.java]
             viewModel.fetchData()
         }
 
         val fromDataBase = FromDataBase(dataBase)
-        viewModelForDataBase = ViewModelProvider(
-            this, AppViewModelFactoryForDatabase(fromDataBase)
-        )[AppViewModelForDatabase::class.java]
+        viewModelDataBase = ViewModelProvider(
+            this, ViewModelDatabaseFactory(fromDataBase)
+        )[ViewModelDatabase::class.java]
 
         setRecyclerViewAdapter()
 
-        viewModelForDataBase.getPeopleFromDB().observe(this, Observer {
+        viewModelDataBase.getPeopleFromDB().observe(this, Observer {
             val listPeople = it.toMutableList()
             adapter.setPersons(listPeople)
         })
-        viewModelForDataBase.getCountriesFromDB().observe(this, Observer {
+        viewModelDataBase.getCountriesFromDB().observe(this, Observer {
             adapterCountriesSpinner = settingCountrySpinnersAdapter(it)
             binding.spinnerCountries.adapter = adapterCountriesSpinner
         })
@@ -111,7 +109,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onItemSelected(
                     parent: AdapterView<*>?, view: View?, position: Int, id: Long
                 ) {
-                    viewModelForDataBase.getCitiesFromDb().observe(this@MainActivity, Observer {
+                    viewModelDataBase.getCitiesFromDb().observe(this@MainActivity, Observer {
                         adapterCitiesSpinner = updateCitySpinner(position, it)
                         binding.spinnerCities.adapter = adapterCitiesSpinner
                         if (binding.spinnerCountries.selectedItemPosition == 0) {
@@ -132,7 +130,7 @@ class MainActivity : AppCompatActivity() {
             override fun onItemSelected(
                 parent: AdapterView<*>?, view: View?, position: Int, id: Long
             ) {
-                viewModelForDataBase.getPeopleFromDB().observe(this@MainActivity, Observer {
+                viewModelDataBase.getPeopleFromDB().observe(this@MainActivity, Observer {
                     val filteredList = filteredPeopleList(
                         it, binding.spinnerCities.selectedItem.toString()
                     )
@@ -142,13 +140,12 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         adapter.filterByCities(filteredList)
                     }
-
                 })
             }
         }
         binding.swipeRefresh.setColorSchemeResources(R.color.black)
         binding.swipeRefresh.setOnRefreshListener {
-            viewModelForDataBase.getPeopleFromDB().observe(this, Observer {
+            viewModelDataBase.getPeopleFromDB().observe(this, Observer {
                 val listPeople = it.toMutableList()
                 adapter.setPersons(listPeople)
                 binding.spinnerCountries.setSelection(0)
@@ -207,14 +204,10 @@ class MainActivity : AppCompatActivity() {
         val connectivityManager =
             getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val network = connectivityManager.activeNetwork
-            val capabilities = connectivityManager.getNetworkCapabilities(network)
-            return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-        } else {
-            val activeNetworkInfo = connectivityManager.activeNetworkInfo
-            return activeNetworkInfo != null && activeNetworkInfo.isConnected
-        }
+        val network = connectivityManager.activeNetwork
+        val capabilities = connectivityManager.getNetworkCapabilities(network)
+
+        return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     }
 
     private fun showInternetDialogForFirstTime() {
