@@ -11,6 +11,7 @@ import android.provider.Settings
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -24,6 +25,7 @@ import com.example.taskgivenbytaygatech.ViewModel.ViewModelDatabaseFactory
 import com.example.taskgivenbytaygatech.ViewModel.ViewModelDatabase
 import com.example.taskgivenbytaygatech.Adapter.RecyclerViewAdapter
 import com.example.taskgivenbytaygatech.Network.CountriesAPI
+import com.example.taskgivenbytaygatech.Network.NetworkConnectionIterceptor
 import com.example.taskgivenbytaygatech.Repository.FromApiToDataBase
 import com.example.taskgivenbytaygatech.Repository.FromDataBase
 import com.example.taskgivenbytaygatech.Room.CityEntity
@@ -31,8 +33,10 @@ import com.example.taskgivenbytaygatech.Room.CountryEntity
 import com.example.taskgivenbytaygatech.Room.DataBase
 import com.example.taskgivenbytaygatech.Room.PeopleEntity
 import com.example.taskgivenbytaygatech.databinding.ActivityMainBinding
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -42,9 +46,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewModelDataBase: ViewModelDatabase
     private lateinit var adapterCitiesSpinner: ArrayAdapter<String>
     private lateinit var adapterCountriesSpinner: ArrayAdapter<String>
-    private lateinit var internetSettingsLauncher: ActivityResultLauncher<Intent>
-    private val MY_FILE = "MyFile"
-    private val FIRST_RUN_FLAG = "firstRun"
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,38 +54,24 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
-        if (!isInternetAvailable() && isFirstRun()) {
-            updateFirstRunFlag()
-            showInternetDialogForFirstTime()
-        }
-
-        internetSettingsLauncher = registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult()
-        ) {
-            if (isInternetAvailable()) {
-                val intent = Intent(this, MainActivity::class.java)
-                startActivity(intent)
-                finish()
-            } else {
-                showInternetDialogForFirstTime()
-            }
-        }
 
         dataBase = Room.databaseBuilder(applicationContext, DataBase::class.java, "database")
             .fallbackToDestructiveMigration().build()
 
-        if (isInternetAvailable()) {
-            val retrofit = Retrofit.Builder()
-                .baseUrl("http://89.147.202.166:1153/tayqa/tiger/api/development/test/")
-                .addConverterFactory(GsonConverterFactory.create()).build()
-            val countriesAPI = retrofit.create(CountriesAPI::class.java)
+        val client = OkHttpClient.Builder()
+            .addInterceptor(NetworkConnectionIterceptor(applicationContext, this@MainActivity))
+            .build()
 
-            val fromApiToDataBase = FromApiToDataBase(countriesAPI, dataBase)
-            viewModel = ViewModelProvider(
-                this, ViewModelApiFactory(fromApiToDataBase)
-            )[ViewModelApi::class.java]
-            viewModel.fetchData()
-        }
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://89.147.202.166:1153/tayqa/tiger/api/development/test/").client(client)
+            .addConverterFactory(GsonConverterFactory.create()).build()
+        val countriesAPI = retrofit.create(CountriesAPI::class.java)
+
+        val fromApiToDataBase = FromApiToDataBase(countriesAPI, dataBase)
+        viewModel = ViewModelProvider(
+            this, ViewModelApiFactory(fromApiToDataBase, this, this)
+        )[ViewModelApi::class.java]
+        viewModel.fetchData()
 
         val fromDataBase = FromDataBase(dataBase)
         viewModelDataBase = ViewModelProvider(
@@ -156,6 +143,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
     private fun setRecyclerViewAdapter() {
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         adapter = RecyclerViewAdapter()
@@ -199,42 +187,5 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return filteredPeopleList
-    }
-
-    private fun isInternetAvailable(): Boolean {
-        val connectivityManager =
-            getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-
-        val network = connectivityManager.activeNetwork
-        val capabilities = connectivityManager.getNetworkCapabilities(network)
-
-        return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-    }
-
-    private fun showInternetDialogForFirstTime() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Internet Access Required")
-        builder.setMessage("Please enable internet access to use this app.")
-        builder.setPositiveButton("Enable") { _, _ ->
-            val settingsIntent = Intent(Settings.ACTION_WIRELESS_SETTINGS)
-            internetSettingsLauncher.launch(settingsIntent)
-        }
-        builder.setNegativeButton("Cancel") { _, _ ->
-            finish()
-        }
-        builder.setCancelable(false)
-        builder.show()
-    }
-
-    private fun isFirstRun(): Boolean {
-        val settings = getSharedPreferences(MY_FILE, Context.MODE_PRIVATE)
-        return settings.getBoolean(FIRST_RUN_FLAG, true)
-    }
-
-    private fun updateFirstRunFlag() {
-        val settings = getSharedPreferences(MY_FILE, Context.MODE_PRIVATE)
-        val editor = settings.edit()
-        editor.putBoolean(FIRST_RUN_FLAG, false)
-        editor.apply()
     }
 }
