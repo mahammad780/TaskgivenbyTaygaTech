@@ -1,20 +1,12 @@
 package com.example.taskgivenbytaygatech
 
-import android.content.Context
-import android.content.Intent
+
 import android.content.pm.ActivityInfo
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.provider.Settings
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import android.widget.Toast
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -36,7 +28,6 @@ import com.example.taskgivenbytaygatech.databinding.ActivityMainBinding
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -58,9 +49,9 @@ class MainActivity : AppCompatActivity() {
         dataBase = Room.databaseBuilder(applicationContext, DataBase::class.java, "database")
             .fallbackToDestructiveMigration().build()
 
-        val client = OkHttpClient.Builder()
-            .addInterceptor(NetworkConnectionIterceptor(applicationContext, this@MainActivity))
-            .build()
+        val client =
+            OkHttpClient.Builder().addInterceptor(NetworkConnectionIterceptor(applicationContext))
+                .build()
 
         val retrofit = Retrofit.Builder()
             .baseUrl("http://89.147.202.166:1153/tayqa/tiger/api/development/test/").client(client)

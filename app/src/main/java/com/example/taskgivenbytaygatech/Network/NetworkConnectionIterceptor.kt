@@ -1,22 +1,12 @@
 package com.example.taskgivenbytaygatech.Network
 
 import android.content.Context
-import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.provider.Settings
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat.startActivity
-import com.example.taskgivenbytaygatech.MainActivity
 import okhttp3.Interceptor
 import okhttp3.Response
 
-class NetworkConnectionIterceptor(
-    private val context: Context, private val activity: AppCompatActivity
-) : Interceptor {
+class NetworkConnectionIterceptor(private val context: Context) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         if (!isInternetAvailable()) {

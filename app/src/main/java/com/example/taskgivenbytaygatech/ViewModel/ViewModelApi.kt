@@ -12,7 +12,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.taskgivenbytaygatech.MainActivity
 import com.example.taskgivenbytaygatech.Network.NoInternetException
 import com.example.taskgivenbytaygatech.Repository.FromApiToDataBase
 import com.example.taskgivenbytaygatech.Room.CityEntity
@@ -33,9 +32,7 @@ class ViewModelApi(
         ActivityResultContracts.StartActivityForResult()
     ) {
         if (isInternetAvailable()) {
-            val intent = Intent(this.activity, MainActivity::class.java)
-            activity.startActivity(intent)
-            activity.finish()
+            activity.recreate()
         } else {
             showInternetDialogForFirstTime()
         }
